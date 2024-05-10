@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Review Questions</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='review.css') }}">
+</head>
+<body>
+<div class="container">
+    <h2>Review Questions for CSAT ID: {{ csat_id }}</h2>
+    <p>Customer ID: {{ customer_id }}</p>
+    <div id="questionContainer"></div>
+    <button id="sendButton">Submit Responses</button>
+</div>
+<script>
+    // Pass Flask template variables into JavaScript
+    var csatId = "{{ csat_id }}";
+    var customerId = "{{ customer_id }}";
+</script>
+<script src="{{ url_for('static', filename='review_user.js') }}"></script>
+</body>
+</html>

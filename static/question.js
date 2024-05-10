@@ -1,88 +1,122 @@
 const uploadForm = document.getElementById("uploadForm");
 const questionContainer = document.getElementById("questionContainer");
+const submitButton = document.getElementById("submitButton");
+const csatIdDisplay = document.getElementById("csat-id-display");
+const customerIDDisplay = document.getElementById("customer-id-display");
+const csatId = csatIdDisplay.textContent.split(": ")[1].trim();
+const customerId = customerIDDisplay.textContent.split(": ")[1].trim();
+const uploadPopup = document.querySelector(".upload-popup");
+const uploadMessage = document.getElementById("uploadMessage");
+const closePopupButton = document.querySelector(".close-popup-btn");
+const selectedFileNameSpan = document.querySelector(".selected-file-name");
 
 // Function to create a new question box
-function createQuestionBox() {
+function createQuestionBox(question = "") {
   const questionElement = document.createElement("div");
-  questionElement.className = "questionBox"; // Add class for styling
-
+  questionElement.className = "question-box"; // Ensure class matches CSS
   const textBox = document.createElement("textarea");
-  textBox.className = "readOnlyTextbox"; // Add class for styling
-  textBox.setAttribute("readonly", true);
+  textBox.className = "question-text";
+  textBox.textContent = question;
 
   const btnGrpDiv = document.createElement("div");
-  btnGrpDiv.className = "btn-grp";
+  btnGrpDiv.className = "actions";
 
   const editButton = document.createElement("button");
   editButton.textContent = "Edit";
-  editButton.className = "btn-edit";
-  editButton.addEventListener("click", () => {
-    textBox.removeAttribute("readonly");
+  editButton.className = "edit-btn";
+  editButton.onclick = function() {
+    textBox.readOnly = !textBox.readOnly;
     textBox.focus();
-  });
+    editButton.textContent = textBox.readOnly ? "Edit" : "Save";
+  };
 
-  const deleteButton = document.createElement("button"); // Create delete button
+  const deleteButton = document.createElement("button");
   deleteButton.textContent = "Delete";
-  deleteButton.className = "btn-delete";
-  deleteButton.addEventListener("click", () => {
+  deleteButton.className = "delete-btn";
+  deleteButton.onclick = function() {
     questionContainer.removeChild(questionElement);
-  });
+  };
 
   btnGrpDiv.appendChild(editButton);
   btnGrpDiv.appendChild(deleteButton);
 
   questionElement.appendChild(textBox);
-  questionElement.appendChild(btnGrpDiv); // Append delete button
+  questionElement.appendChild(btnGrpDiv);
 
   return questionElement;
 }
 
 // Function to add more questions
 function addMoreQuestions() {
-  const newQuestionBox = createQuestionBox();
+  const newQuestionBox = createQuestionBox(); // Create an empty question box
   questionContainer.appendChild(newQuestionBox);
 }
 
-// Create "Add More Questions" button
-const addMoreQuestionsButton = document.createElement("button");
-addMoreQuestionsButton.textContent = "Add More Questions";
-addMoreQuestionsButton.id = "addMoreQuestions";
-addMoreQuestionsButton.addEventListener("click", addMoreQuestions);
+document.getElementById("addMoreQuestionsBtn").addEventListener("click", addMoreQuestions);
 
-// Append "Add More Questions" button to the container
-questionContainer.appendChild(addMoreQuestionsButton);
+document.getElementById("uploadForm").addEventListener("change", function(event) {
+  const fileInput = document.getElementById("questionFile");
+  if (fileInput.files.length > 0) {
+      const file = fileInput.files[0];
+      console.log("File chosen: ", file.name); // Check if this logs when you choose a file
 
-// Event listener for form submission
-uploadForm.addEventListener("submit", (event) => {
-  event.preventDefault(); // Prevent default form submission
+      const formData = new FormData();
+      formData.append("questionFile", file);
 
-  const file = document.getElementById("questionFile").files[0];
+      console.log("Sending fetch request to server..."); // Check if this executes
+      fetch("/upload_questions", {
+          method: "POST",
+          body: formData,
+      })
+      .then(response => {
+          console.log("Received response from server"); // Check the network response
+          return response.json();
+      })
+      .then(data => {
+          if (data.error) {
+              console.error("Error: ", data.error); // Log any errors
+              uploadMessage.textContent = data.error;
+              uploadPopup.classList.add("error");
+              uploadPopup.style.display = "block";
+          } else {
+              uploadMessage.textContent = "Questions uploaded successfully!";
+              uploadPopup.classList.remove("error");
+              uploadPopup.classList.add("success");
+              uploadPopup.style.display = "block";
 
-  const formData = new FormData();
-  formData.append("questionFile", file);
+              // Clear existing questions
+              questionContainer.innerHTML = "";
 
-  fetch("/upload_questions", {
-    method: "POST",
-    body: formData,
-  })
-    .then((response) => response.json())
-    .then((data) => {
-      if (data.error) {
-        alert(data.error);
-        return;
-      }
-
-      data.questions.forEach((question, index) => {
-        const questionElement = createQuestionBox();
-
-        const textBox = questionElement.querySelector("textarea");
-        textBox.textContent = question;
-
-        questionContainer.appendChild(questionElement);
+              // Add new questions to the container
+              data.questions.forEach(question => {
+                  const newQuestionBox = createQuestionBox(question);
+                  questionContainer.appendChild(newQuestionBox);
+              });
+          }
+      })
+      .catch(error => {
+          console.error("Error uploading file:", error); // Log fetch errors
+          uploadMessage.textContent = "Error uploading file!";
+          uploadPopup.classList.add("error");
+          uploadPopup.style.display = "block";
       });
-    })
-    .catch((error) => {
-      console.error("Error uploading file:", error);
-      alert("Error uploading file!");
-    });
+  } else {
+      console.log("No file selected"); // Check if this logs when no file is selected
+      selectedFileNameSpan.textContent = "No file selected!";
+      uploadMessage.textContent = "Please select a file!";
+      uploadPopup.classList.add("error");
+      uploadPopup.style.display = "block";
+  }
+});
+
+// Close popup button functionality
+closePopupButton.addEventListener("click", () => {
+  uploadPopup.style.display = "none";
+});
+
+// Submit button functionality
+submitButton.addEventListener("click", () => {
+  const questions = Array.from(questionContainer.querySelectorAll(".question-text")).map(textArea => textArea.value);
+  const queryParams = new URLSearchParams({ csatId, customerId, questions: JSON.stringify(questions) });
+  window.location.href = `/review?${queryParams.toString()}`;
 });
